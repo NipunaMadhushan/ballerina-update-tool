@@ -1,0 +1,12 @@
+NAME
+       bal-dist-use - Mark a distribution as the active distribution
+
+SYNOPSIS
+       bal dist use <distribution>
+
+DESCRIPTION
+       Mark the specified Ballerina distribution as the active distribution.
+
+EXAMPLES
+       Mark 2201.5.0 as the active distribution.
+          $ bal dist use 2201.5.0

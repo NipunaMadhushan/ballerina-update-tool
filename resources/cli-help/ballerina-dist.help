@@ -1,0 +1,37 @@
+NAME
+       bal dist - Manage Ballerina distributions
+
+SYNOPSIS
+       bal dist
+       bal dist <command> [<-h> | <--help>]
+       bal dist <command> <args>
+
+DESCRIPTION
+       Display details of all the commands that are available to install, update, 
+       and switch between Ballerina distributions from the patch and minor 
+       release channels.
+
+OPTIONS
+       -h, --help
+           Print the usage details of all commands.
+
+BALLERINA COMMANDS
+       The below is a list of available subcommands:
+
+       update     Update to the latest patch version of the active distribution
+       pull       Fetch a distribution and set it as the active version
+       use        Set a distribution as the active distribution
+       list       List locally and remotely available distributions
+       remove     Remove distributions in your local environment
+
+Use 'bal help dist <command>' for more information on a specific command.
+
+EXAMPLES
+       Manage Ballerina distributions.
+          $ bal dist 
+
+       Print the usage details of all commands.
+          $ bal dist --help
+       
+       Print the usage details of the `bal dist update` command.
+          $ bal help dist update

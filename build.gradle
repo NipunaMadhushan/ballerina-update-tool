@@ -1,0 +1,174 @@
+plugins {
+    id 'base'
+}
+
+def libsDirectory = "${buildDir}/libs"
+def toolPropertiesFile = file('resources/tool.properties')
+def toolProperties = toolPropertiesFile.text
+
+task updateVersionInProperties {
+    doLast {
+        def content = toolProperties.replace('${project.version}', project.version)
+        toolPropertiesFile.text = content
+    }
+}
+
+task resetVersionInProperties {
+    doLast {
+        toolPropertiesFile.text = toolProperties
+    }
+}
+
+// Task for MacOS AMD64 build
+task buildMacOs(type: Exec) {
+    dependsOn updateVersionInProperties
+    workingDir projectDir
+    environment 'GOOS', 'darwin'
+    environment 'GOARCH', 'amd64'
+    commandLine 'go', 'build', '-o', "${libsDirectory}/${project.name}-${project.version}-macos", 'main.go'
+}
+
+// Task for MacOS ARM64 build
+task buildMacOsArm(type: Exec) {
+    dependsOn updateVersionInProperties
+    workingDir projectDir
+    environment 'GOOS', 'darwin'
+    environment 'GOARCH', 'arm64'
+    commandLine 'go', 'build', '-o', "${libsDirectory}/${project.name}-${project.version}-macos-arm", 'main.go'
+}
+
+// Task for Linux AMD64 build
+task buildLinux(type: Exec) {
+    dependsOn updateVersionInProperties
+    workingDir projectDir
+    environment 'GOOS', 'linux'
+    environment 'GOARCH', 'amd64'
+    commandLine 'go', 'build', '-o', "${libsDirectory}/${project.name}-${project.version}-linux", 'main.go'
+}
+
+// Task for Linux ARM64 build
+task buildLinuxArm(type: Exec) {
+    dependsOn updateVersionInProperties
+    workingDir projectDir
+    environment 'GOOS', 'linux'
+    environment 'GOARCH', 'arm64'
+    commandLine 'go', 'build', '-o', "${libsDirectory}/${project.name}-${project.version}-linux-arm", 'main.go'
+}
+
+// Task for Windows AMD64 build
+task buildWindows(type: Exec) {
+    dependsOn updateVersionInProperties
+    workingDir projectDir
+    environment 'GOOS', 'windows'
+    environment 'GOARCH', 'amd64'
+    commandLine 'go', 'build', '-o', "${libsDirectory}/${project.name}-${project.version}-windows.exe", 'main.go'
+}
+
+// Main task to build for all platforms
+task buildBallerinaCommand {
+    description 'Build Ballerina Command for all platforms'
+    group 'build'
+
+    dependsOn buildMacOs
+    dependsOn buildMacOsArm
+    dependsOn buildLinux
+    dependsOn buildLinuxArm
+    dependsOn buildWindows
+
+    finalizedBy(resetVersionInProperties)
+}
+
+task copyBin(type: Copy) {
+    from file("resources/bin")
+    into file("${buildDir}/resources/bin")
+    filter(org.apache.tools.ant.filters.ReplaceTokens, tokens: ["version": version])
+}
+
+task copyScripts(type: Copy) {
+    from file("resources/scripts")
+    into file("${buildDir}/resources/scripts")
+    filter(org.apache.tools.ant.filters.ReplaceTokens, tokens: ["version": version])
+}
+
+task copyResources(type: Copy) {
+    from file("resources")
+    include "cli-help/*"
+    include "tool.properties"
+    into file("${buildDir}/resources/resources")
+}
+
+def copyLibForPlatform(targetOs) {
+    return tasks.create("copyLib${targetOs.capitalize()}", Copy) {
+        dependsOn buildBallerinaCommand
+        from file("build/libs")
+        if (targetOs == "windows") {
+            include "${project.name}-${project.version}-${targetOs}.exe"
+            rename("${project.name}-${project.version}-${targetOs}.exe", "${project.name}-${project.version}.exe")
+        } else {
+            include "${project.name}-${project.version}-${targetOs}"
+            rename("${project.name}-${project.version}-${targetOs}", "${project.name}-${project.version}")
+        }
+        into file("${buildDir}/target/${project.name}-${project.version}-${targetOs}/lib")
+    }
+}
+
+def copyResourcesForPlatform(targetOs) {
+    return tasks.create("copyResources${targetOs.capitalize()}", Copy) {
+        dependsOn copyBin
+        dependsOn copyScripts
+        dependsOn copyResources
+        from file("${buildDir}/resources")
+        into file("${buildDir}/target/${project.name}-${project.version}-${targetOs}")
+    }
+}
+
+def createZipForPlatform(targetOs) {
+    return tasks.create("createZip${targetOs.capitalize()}", Zip) {
+        from file("${buildDir}/target/${project.name}-${project.version}-${targetOs}")
+        archiveFileName = "${project.name}-${project.version}-${targetOs}.zip"
+        destinationDirectory = file("${buildDir}/distributions")
+    }
+}
+
+def copyMacOsLib = copyLibForPlatform("macos")
+def copyMacOsArmLib = copyLibForPlatform("macos-arm")
+def copyLinuxLib = copyLibForPlatform("linux")
+def copyLinuxArmLib = copyLibForPlatform("linux-arm")
+def copyWindowsLib = copyLibForPlatform("windows")
+
+def copyMacOsResources = copyResourcesForPlatform("macos")
+def copyMacOsArmResources = copyResourcesForPlatform("macos-arm")
+def copyLinuxResources = copyResourcesForPlatform("linux")
+def copyLinuxArmResources = copyResourcesForPlatform("linux-arm")
+def copyWindowsResources = copyResourcesForPlatform("windows")
+
+def createMacOsZip = createZipForPlatform("macos")
+def createMacOsArmZip = createZipForPlatform("macos-arm")
+def createLinuxZip = createZipForPlatform("linux")
+def createLinuxArmZip = createZipForPlatform("linux-arm")
+def createWindowsZip = createZipForPlatform("windows")
+
+task createZip(type:Zip) {
+    dependsOn buildBallerinaCommand
+    dependsOn copyBin
+    dependsOn copyScripts
+    dependsOn copyResources
+
+    dependsOn createMacOsZip
+    dependsOn createMacOsArmZip
+    dependsOn createLinuxZip
+    dependsOn createLinuxArmZip
+    dependsOn createWindowsZip
+}
+
+build.dependsOn createZip
+createMacOsZip.dependsOn copyMacOsResources
+createMacOsArmZip.dependsOn copyMacOsArmResources
+createLinuxZip.dependsOn copyLinuxResources
+createLinuxArmZip.dependsOn copyLinuxArmResources
+createWindowsZip.dependsOn copyWindowsResources
+copyMacOsResources.dependsOn copyMacOsLib
+copyMacOsArmResources.dependsOn copyMacOsArmLib
+copyLinuxResources.dependsOn copyLinuxLib
+copyLinuxArmResources.dependsOn copyLinuxArmLib
+copyWindowsResources.dependsOn copyWindowsLib

@@ -1,0 +1,24 @@
+NAME
+       bal-remove - Remove distributions in your local environment
+
+SYNOPSIS
+       bal dist remove <distribution>
+
+OPTIONS
+       -a, --all
+          Remove all the Ballerina distributions except the currently active one
+       from your local machine. 
+
+DESCRIPTION
+       Remove the specified Ballerina distribution or all the available 
+       distributions from your local environment.
+
+       However, you are not allowed to remove the currently active distribution.
+
+EXAMPLES
+       Remove the 2201.5.0 version from your local machine.
+          $ bal dist remove 2201.5.0
+
+       Remove all the Ballerina distributions except the currently active one
+       from your local machine.
+          $ bal dist remove -a
