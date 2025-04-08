@@ -1,17 +1,19 @@
 /*
- * Copyright (c) 2019, WSO2 Inc. (http://wso2.com) All Rights Reserved.
+ * Copyright (c) 2025, WSO2 LLC. (https://www.wso2.com) All Rights Reserved.
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
+ * WSO2 LLC. licenses this file to you under the Apache License,
+ * Version 2.0 (the "License"); you may not use this file except
+ * in compliance with the License.
  * You may obtain a copy of the License at
  *
- * http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied. See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
  */
 
 package cmd
@@ -20,67 +22,59 @@ import (
 	"ballerina-update-tool/constants"
 	"ballerina-update-tool/utils"
 	"fmt"
+	"github.com/spf13/cobra"
 	"io"
 	"strings"
 )
 
-// UpdateCommand represents the "update" command and holds arguments and flags specified by the user
-// Command name: "command", description: "Update Ballerina current distribution"
-type UpdateCommand struct {
-	*Command
-	UpdateCommands  []string // Command name
-	HelpFlag        bool     // --help, -h, ?
-	TestFlag        bool     // --test, -t
-	ParentCmdParser interface{}
-}
+// NewUpdateCmd creates a new update command using Cobra and CommandBase
+func NewUpdateCmd(printStream io.Writer) *cobra.Command {
+	// Create a command with the utility function
+	cmd, cmdBase := SetupBasicCommand(
+		"update",
+		"Update Ballerina current distribution",
+		`Update the current Ballerina distribution to the latest version.
 
-// NewUpdate creates a new UpdateCommand
-func NewUpdate(printStream io.Writer) *UpdateCommand {
-	cmd := &UpdateCommand{}
-	cmd.Command = NewWithWriter(printStream)
+This command automatically checks for and downloads the latest patch version
+of your current Ballerina distribution and sets it as the active distribution.`,
+		printStream,
+	)
+
+	// Define flags
+	var testFlag bool
+
+	// Add flags
+	cmd.Flags().BoolVarP(&testFlag, "test", "t", false, "Update with a test distribution")
+
+	// Add example
+	cmd.Example = `  # Update to the latest patch version
+  bal dist update
+
+  # Update with test flag
+  bal dist update --test`
+
+	// Add command implementation
+	cmd.Run = func(cobraCmd *cobra.Command, args []string) {
+		// Handle panic recovery
+		defer HandlePanic()
+
+		// Check for too many arguments
+		if len(args) > 0 {
+			panic(utils.ErrorUtil.CreateDistSubCommandUsageExceptionWithHelp("too many arguments", constants.BallerinaCliCommands.UPDATE))
+		}
+
+		// Handle permissions
+		utils.ToolUtil.HandleInstallDirPermission()
+
+		// Execute update command
+		executeUpdate(cmdBase.GetPrintStream(), testFlag)
+	}
+
 	return cmd
 }
 
-// Execute runs the command
-func (cmd *UpdateCommand) Execute() {
-	if cmd.HelpFlag {
-		cmd.PrintUsageInfo(constants.CommandToolConstants.CliHelpFilePrefix + cmd.GetName())
-		return
-	}
-
-	if cmd.UpdateCommands == nil {
-		utils.ToolUtil.HandleInstallDirPermission()
-		Update(cmd.GetPrintStream(), cmd.TestFlag)
-		return
-	}
-
-	if len(cmd.UpdateCommands) > 0 {
-		panic(utils.ErrorUtil.CreateDistSubCommandUsageExceptionWithHelp("too many arguments", cmd.GetName()))
-	}
-}
-
-// GetName returns the name of the command
-func (cmd *UpdateCommand) GetName() string {
-	return constants.BallerinaCliCommands.UPDATE
-}
-
-// PrintLongDesc prints the long description of the command
-func (cmd *UpdateCommand) PrintLongDesc(out *strings.Builder) {
-	// Implementation is empty in the original Java code
-}
-
-// PrintUsage prints the usage of the command
-func (cmd *UpdateCommand) PrintUsage(out *strings.Builder) {
-	out.WriteString("  bal dist command\n")
-}
-
-// SetParentCmdParser sets the parent command parser
-func (cmd *UpdateCommand) SetParentCmdParser(parentCmdParser interface{}) {
-	cmd.ParentCmdParser = parentCmdParser
-}
-
-// Update updates the Ballerina distribution to the latest version
-func Update(printStream io.Writer, testFlag bool) {
+// executeUpdate updates the Ballerina distribution to the latest version
+func executeUpdate(printStream io.Writer, testFlag bool) {
 	if !testFlag {
 		// Check and update the tool if any latest version available
 		toolDetails := utils.ToolUtil.UpdateTool(printStream)
@@ -106,4 +100,82 @@ func Update(printStream io.Writer, testFlag bool) {
 	}
 
 	fmt.Fprintf(printStream, "The latest distribution '%s' is already the active distribution\n", latestVersion)
+}
+
+// For backward compatibility with the existing command system
+
+// UpdateCommandStruct is a wrapper for backward compatibility
+type UpdateCommandStruct struct {
+	cmdBase         *CommandBase
+	cobraCmd        *cobra.Command
+	UpdateCommands  []string
+	HelpFlag        bool
+	TestFlag        bool
+	ParentCmdParser interface{}
+}
+
+// NewUpdate creates a new UpdateCommand for backward compatibility
+func NewUpdate(printStream io.Writer) *UpdateCommandStruct {
+	// Create the Cobra command
+	cobraCmd := NewUpdateCmd(printStream)
+
+	// Create the wrapper
+	cmd := &UpdateCommandStruct{
+		cobraCmd: cobraCmd,
+		cmdBase:  NewCommandBase(cobraCmd, printStream),
+	}
+
+	return cmd
+}
+
+// Execute runs the command (for backward compatibility)
+func (cmd *UpdateCommandStruct) Execute() {
+	if cmd.HelpFlag {
+		cmd.cmdBase.PrintUsageInfo(constants.CommandToolConstants.CliHelpFilePrefix + cmd.GetName())
+		return
+	}
+
+	// Apply flags to the cobra command
+	cmd.cobraCmd.Flags().Set("test", fmt.Sprintf("%v", cmd.TestFlag))
+
+	// Check arguments
+	if cmd.UpdateCommands == nil {
+		utils.ToolUtil.HandleInstallDirPermission()
+		executeUpdate(cmd.cmdBase.GetPrintStream(), cmd.TestFlag)
+		return
+	}
+
+	if len(cmd.UpdateCommands) > 0 {
+		panic(utils.ErrorUtil.CreateDistSubCommandUsageExceptionWithHelp("too many arguments", cmd.GetName()))
+	}
+}
+
+// GetName returns the name of the command
+func (cmd *UpdateCommandStruct) GetName() string {
+	return constants.BallerinaCliCommands.UPDATE
+}
+
+// PrintLongDesc prints the long description of the command
+func (cmd *UpdateCommandStruct) PrintLongDesc(out *strings.Builder) {
+	// No implementation needed, Cobra handles this
+}
+
+// PrintUsage prints the usage of the command
+func (cmd *UpdateCommandStruct) PrintUsage(out *strings.Builder) {
+	out.WriteString("  bal dist update\n")
+}
+
+// SetParentCmdParser sets the parent command parser
+func (cmd *UpdateCommandStruct) SetParentCmdParser(parentCmdParser interface{}) {
+	cmd.ParentCmdParser = parentCmdParser
+}
+
+// GetCobraCommand returns the underlying cobra command
+func (cmd *UpdateCommandStruct) GetCobraCommand() *cobra.Command {
+	return cmd.cobraCmd
+}
+
+// GetPrintStream returns the print stream
+func (cmd *UpdateCommandStruct) GetPrintStream() io.Writer {
+	return cmd.cmdBase.GetPrintStream()
 }

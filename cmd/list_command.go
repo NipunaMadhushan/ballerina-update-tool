@@ -1,17 +1,19 @@
 /*
- * Copyright (c) 2019, WSO2 Inc. (http://wso2.com) All Rights Reserved.
+ * Copyright (c) 2025, WSO2 LLC. (https://www.wso2.com) All Rights Reserved.
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
+ * WSO2 LLC. licenses this file to you under the Apache License,
+ * Version 2.0 (the "License"); you may not use this file except
+ * in compliance with the License.
  * You may obtain a copy of the License at
  *
- * http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied. See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
  */
 
 package cmd
@@ -22,6 +24,7 @@ import (
 	"ballerina-update-tool/utils"
 	"encoding/json"
 	"fmt"
+	"github.com/spf13/cobra"
 	"io"
 	"io/ioutil"
 	"os"
@@ -31,33 +34,97 @@ import (
 	"strings"
 )
 
-// ListCommand represents the "list" command and holds arguments and flags specified by the user
-// Command name: "list", description: "List Ballerina Distributions"
-type ListCommand struct {
-	*Command
-	ListCommands    []string // Command name
-	HelpFlag        bool     // --help, -h, ?
-	AllFlag         bool     // --all, -a
-	PreReleasesFlag bool     // --pre-releases, -p
-	ParentCmdParser interface{}
-}
+// NewListCmd creates a new list command using Cobra and CommandBase
+func NewListCmd(printStream io.Writer) *cobra.Command {
+	// Create a command with the utility function
+	cmd, cmdBase := SetupBasicCommand(
+		"list",
+		"List Ballerina Distributions",
+		`List locally and remotely available Ballerina distributions.
 
-// NewList creates a new ListCommand
-func NewList(printStream io.Writer) *ListCommand {
-	cmd := &ListCommand{}
-	cmd.Command = NewWithWriter(printStream)
+This command displays all Ballerina distributions that are installed locally
+and those that are available for download from the remote server.`,
+		printStream,
+	)
+
+	// Define flags
+	var allFlag bool
+	var preReleasesFlag bool
+
+	// Add flags
+	cmd.Flags().BoolVarP(&allFlag, "all", "a", false, "List all distributions (not just the most recent ones)")
+	cmd.Flags().BoolVarP(&preReleasesFlag, "pre-releases", "p", false, "Include pre-release versions in the listings")
+
+	// Add example
+	cmd.Example = `  # List local and recent remote distributions
+  bal dist list
+
+  # List all available distributions
+  bal dist list --all
+
+  # List including pre-release versions
+  bal dist list --pre-releases
+
+  # List all including pre-release versions
+  bal dist list --all --pre-releases`
+
+	// Add command implementation
+	cmd.Run = func(cobraCmd *cobra.Command, args []string) {
+		// Handle panic recovery
+		defer HandlePanic()
+
+		// Check for too many arguments
+		if len(args) > 0 {
+			panic(utils.ErrorUtil.CreateDistSubCommandUsageExceptionWithHelp("too many arguments", constants.BallerinaCliCommands.LIST))
+		}
+
+		// Execute list command
+		listDistributions(cmdBase.GetPrintStream(), allFlag, preReleasesFlag)
+	}
+
 	return cmd
 }
 
-// Execute runs the command
-func (cmd *ListCommand) Execute() {
+// For backward compatibility with the existing command system
+
+// ListCommandStruct is a wrapper for backward compatibility
+type ListCommandStruct struct {
+	cmdBase         *CommandBase
+	cobraCmd        *cobra.Command
+	ListCommands    []string
+	HelpFlag        bool
+	AllFlag         bool
+	PreReleasesFlag bool
+	ParentCmdParser interface{}
+}
+
+// NewList creates a new ListCommand for backward compatibility
+func NewList(printStream io.Writer) *ListCommandStruct {
+	// Create the Cobra command
+	cobraCmd := NewListCmd(printStream)
+
+	// Create the wrapper
+	cmd := &ListCommandStruct{
+		cobraCmd: cobraCmd,
+		cmdBase:  NewCommandBase(cobraCmd, printStream),
+	}
+
+	return cmd
+}
+
+// Execute runs the command (for backward compatibility)
+func (cmd *ListCommandStruct) Execute() {
 	if cmd.HelpFlag {
-		cmd.PrintUsageInfo(constants.CommandToolConstants.CliHelpFilePrefix + cmd.GetName())
+		cmd.cmdBase.PrintUsageInfo(constants.CommandToolConstants.CliHelpFilePrefix + cmd.GetName())
 		return
 	}
 
+	// Apply flags to the cobra command
+	cmd.cobraCmd.Flags().Set("all", fmt.Sprintf("%v", cmd.AllFlag))
+	cmd.cobraCmd.Flags().Set("pre-releases", fmt.Sprintf("%v", cmd.PreReleasesFlag))
+
 	if cmd.ListCommands == nil {
-		listDistributions(cmd.GetPrintStream(), cmd.AllFlag, cmd.PreReleasesFlag)
+		listDistributions(cmd.cmdBase.GetPrintStream(), cmd.AllFlag, cmd.PreReleasesFlag)
 		return
 	}
 
@@ -67,23 +134,33 @@ func (cmd *ListCommand) Execute() {
 }
 
 // GetName returns the name of the command
-func (cmd *ListCommand) GetName() string {
+func (cmd *ListCommandStruct) GetName() string {
 	return constants.BallerinaCliCommands.LIST
 }
 
 // PrintLongDesc prints the long description of the command
-func (cmd *ListCommand) PrintLongDesc(out *strings.Builder) {
-	// Implementation is empty in the original Java code
+func (cmd *ListCommandStruct) PrintLongDesc(out *strings.Builder) {
+	// No implementation needed, Cobra handles this
 }
 
 // PrintUsage prints the usage of the command
-func (cmd *ListCommand) PrintUsage(out *strings.Builder) {
+func (cmd *ListCommandStruct) PrintUsage(out *strings.Builder) {
 	out.WriteString("  bal dist list\n")
 }
 
 // SetParentCmdParser sets the parent command parser
-func (cmd *ListCommand) SetParentCmdParser(parentCmdParser interface{}) {
+func (cmd *ListCommandStruct) SetParentCmdParser(parentCmdParser interface{}) {
 	cmd.ParentCmdParser = parentCmdParser
+}
+
+// GetCobraCommand returns the underlying cobra command
+func (cmd *ListCommandStruct) GetCobraCommand() *cobra.Command {
+	return cmd.cobraCmd
+}
+
+// GetPrintStream returns the print stream
+func (cmd *ListCommandStruct) GetPrintStream() io.Writer {
+	return cmd.cmdBase.GetPrintStream()
 }
 
 // listDistributions lists distributions in the local and remote
@@ -322,12 +399,6 @@ func listLocalDists(listOfFiles []os.FileInfo, outStream io.Writer, currentBalle
 			fmt.Fprintln(outStream, markVersion(currentBallerinaVersion, version))
 		}
 	}
-}
-
-// Distribution represents a Ballerina distribution
-type Distribution struct {
-	Name    string
-	Version string
 }
 
 // getSortedDistList sorts the distributions under a channel according to their semver version

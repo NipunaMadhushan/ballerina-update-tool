@@ -1,17 +1,19 @@
 /*
- * Copyright (c) 2019, WSO2 Inc. (http://wso2.com) All Rights Reserved.
+ * Copyright (c) 2025, WSO2 LLC. (https://www.wso2.com) All Rights Reserved.
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
+ * WSO2 LLC. licenses this file to you under the Apache License,
+ * Version 2.0 (the "License"); you may not use this file except
+ * in compliance with the License.
  * You may obtain a copy of the License at
  *
- * http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied. See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
  */
 
 package cmd
@@ -20,62 +22,46 @@ import (
 	"ballerina-update-tool/constants"
 	"ballerina-update-tool/utils"
 	"fmt"
+	"github.com/spf13/cobra"
 	"io"
 	"strings"
 )
 
-// UpdateToolCommand represents the "update" command and holds arguments and flags specified by the user
-// Command name: "command", description: "Update Ballerina current cli tool commands"
-type UpdateToolCommand struct {
-	*Command
-	UpdateCommands  []string // args
-	HelpFlag        bool     // --help, -h, ?
-	ParentCmdParser interface{}
-}
+// NewUpdateToolCmd creates a new update tool command using Cobra and CommandBase
+func NewUpdateToolCmd(printStream io.Writer) *cobra.Command {
+	// Create a command with the utility function
+	cmd, cmdBase := SetupBasicCommand(
+		"update",
+		"Update Ballerina CLI tool",
+		`Update the Ballerina CLI tool to the latest version.
 
-// NewUpdateTool creates a new UpdateToolCommand
-func NewUpdateTool(printStream io.Writer) *UpdateToolCommand {
-	cmd := &UpdateToolCommand{}
-	cmd.Command = NewWithWriter(printStream)
-	return cmd
-}
+This command checks for and downloads the latest version of the Ballerina CLI
+tool itself. To update your Ballerina distribution, use 'bal dist update' instead.`,
+		printStream,
+	)
 
-// Execute runs the command
-func (cmd *UpdateToolCommand) Execute() {
-	if cmd.HelpFlag {
-		cmd.PrintUsageInfo(constants.BallerinaCliCommands.UPDATE)
-		return
-	}
+	// Add example
+	cmd.Example = `  # Update the CLI tool to the latest version
+  bal update`
 
-	if cmd.UpdateCommands == nil {
+	// Add command implementation
+	cmd.Run = func(cobraCmd *cobra.Command, args []string) {
+		// Handle panic recovery
+		defer HandlePanic()
+
+		// Check for too many arguments
+		if len(args) > 0 {
+			panic(utils.ErrorUtil.CreateUsageExceptionWithHelpSubCommand("too many arguments", constants.BallerinaCliCommands.UPDATE))
+		}
+
+		// Handle permissions
 		utils.ToolUtil.HandleInstallDirPermission()
-		updateCommands(cmd.GetPrintStream())
-		return
+
+		// Execute update tool command
+		updateCommands(cmdBase.GetPrintStream())
 	}
 
-	if len(cmd.UpdateCommands) > 0 {
-		panic(utils.ErrorUtil.CreateUsageExceptionWithHelpSubCommand("too many arguments", cmd.GetName()))
-	}
-}
-
-// GetName returns the name of the command
-func (cmd *UpdateToolCommand) GetName() string {
-	return constants.BallerinaCliCommands.UPDATE
-}
-
-// PrintLongDesc prints the long description of the command
-func (cmd *UpdateToolCommand) PrintLongDesc(out *strings.Builder) {
-	out.WriteString("Updates the Ballerina tool to the latest version.\n")
-}
-
-// PrintUsage prints the usage of the command
-func (cmd *UpdateToolCommand) PrintUsage(out *strings.Builder) {
-	out.WriteString("  ballerina tool\n")
-}
-
-// SetParentCmdParser sets the parent command parser
-func (cmd *UpdateToolCommand) SetParentCmdParser(parentCmdParser interface{}) {
-	cmd.ParentCmdParser = parentCmdParser
+	return cmd
 }
 
 // updateCommands updates the CLI tool commands to the latest version
@@ -97,4 +83,78 @@ func updateCommands(printStream io.Writer) {
 	}
 
 	utils.ToolUtil.DownloadTool(printStream, latestVersion)
+}
+
+// For backward compatibility with the existing command system
+
+// UpdateToolCommandStruct is a wrapper for backward compatibility
+type UpdateToolCommandStruct struct {
+	cmdBase         *CommandBase
+	cobraCmd        *cobra.Command
+	UpdateCommands  []string
+	HelpFlag        bool
+	ParentCmdParser interface{}
+}
+
+// NewUpdateTool creates a new UpdateToolCommand for backward compatibility
+func NewUpdateTool(printStream io.Writer) *UpdateToolCommandStruct {
+	// Create the Cobra command
+	cobraCmd := NewUpdateToolCmd(printStream)
+
+	// Create the wrapper
+	cmd := &UpdateToolCommandStruct{
+		cobraCmd: cobraCmd,
+		cmdBase:  NewCommandBase(cobraCmd, printStream),
+	}
+
+	return cmd
+}
+
+// Execute runs the command (for backward compatibility)
+func (cmd *UpdateToolCommandStruct) Execute() {
+	if cmd.HelpFlag {
+		cmd.cmdBase.PrintUsageInfo(constants.BallerinaCliCommands.UPDATE)
+		return
+	}
+
+	// Check arguments
+	if cmd.UpdateCommands == nil {
+		utils.ToolUtil.HandleInstallDirPermission()
+		updateCommands(cmd.cmdBase.GetPrintStream())
+		return
+	}
+
+	if len(cmd.UpdateCommands) > 0 {
+		panic(utils.ErrorUtil.CreateUsageExceptionWithHelpSubCommand("too many arguments", cmd.GetName()))
+	}
+}
+
+// GetName returns the name of the command
+func (cmd *UpdateToolCommandStruct) GetName() string {
+	return constants.BallerinaCliCommands.UPDATE
+}
+
+// PrintLongDesc prints the long description of the command
+func (cmd *UpdateToolCommandStruct) PrintLongDesc(out *strings.Builder) {
+	out.WriteString("Updates the Ballerina tool to the latest version.\n")
+}
+
+// PrintUsage prints the usage of the command
+func (cmd *UpdateToolCommandStruct) PrintUsage(out *strings.Builder) {
+	out.WriteString("  ballerina tool\n")
+}
+
+// SetParentCmdParser sets the parent command parser
+func (cmd *UpdateToolCommandStruct) SetParentCmdParser(parentCmdParser interface{}) {
+	cmd.ParentCmdParser = parentCmdParser
+}
+
+// GetCobraCommand returns the underlying cobra command
+func (cmd *UpdateToolCommandStruct) GetCobraCommand() *cobra.Command {
+	return cmd.cobraCmd
+}
+
+// GetPrintStream returns the print stream
+func (cmd *UpdateToolCommandStruct) GetPrintStream() io.Writer {
+	return cmd.cmdBase.GetPrintStream()
 }
