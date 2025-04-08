@@ -88,13 +88,9 @@ func (c *CommandBase) GetCommandUsageInfo(commandName string) string {
 
 // PrintVersionInfo prints version information
 func (c *CommandBase) PrintVersionInfo() {
-	currentVersion := utils.ToolUtil.GetCurrentBallerinaVersion()
+	utils.ToolUtil.GetCurrentBallerinaVersion()
 	toolVersion := utils.ToolUtil.GetCurrentToolsVersion()
-
 	fmt.Fprintf(c.PrintStream, "Update Tool %s\n", toolVersion)
-	if currentVersion != "" {
-		fmt.Fprintf(c.PrintStream, "Ballerina Distribution Version: %s\n", currentVersion)
-	}
 }
 
 // Utility functions for Cobra command initialization and usage
