@@ -25,7 +25,7 @@ task buildMacOs(type: Exec) {
     workingDir projectDir
     environment 'GOOS', 'darwin'
     environment 'GOARCH', 'amd64'
-    commandLine 'go', 'build', '-o', "${libsDirectory}/${project.name}-${project.version}-macos", 'main.go'
+    commandLine 'go', 'build', '-ldflags', "-X 'ballerina-update-tool/utils.BallerinaToolVersion=${project.version}'", '-o', "${libsDirectory}/${project.name}-${project.version}-macos", 'main.go'
 }
 
 // Task for MacOS ARM64 build
@@ -34,7 +34,7 @@ task buildMacOsArm(type: Exec) {
     workingDir projectDir
     environment 'GOOS', 'darwin'
     environment 'GOARCH', 'arm64'
-    commandLine 'go', 'build', '-o', "${libsDirectory}/${project.name}-${project.version}-macos-arm", 'main.go'
+    commandLine 'go', 'build', '-ldflags', "-X 'ballerina-update-tool/utils.BallerinaToolVersion=${project.version}'", '-o', "${libsDirectory}/${project.name}-${project.version}-macos-arm", 'main.go'
 }
 
 // Task for Linux AMD64 build
@@ -43,7 +43,7 @@ task buildLinux(type: Exec) {
     workingDir projectDir
     environment 'GOOS', 'linux'
     environment 'GOARCH', 'amd64'
-    commandLine 'go', 'build', '-o', "${libsDirectory}/${project.name}-${project.version}-linux", 'main.go'
+    commandLine 'go', 'build', '-ldflags', "-X 'ballerina-update-tool/utils.BallerinaToolVersion=${project.version}'", '-o', "${libsDirectory}/${project.name}-${project.version}-linux", 'main.go'
 }
 
 // Task for Linux ARM64 build
@@ -52,7 +52,7 @@ task buildLinuxArm(type: Exec) {
     workingDir projectDir
     environment 'GOOS', 'linux'
     environment 'GOARCH', 'arm64'
-    commandLine 'go', 'build', '-o', "${libsDirectory}/${project.name}-${project.version}-linux-arm", 'main.go'
+    commandLine 'go', 'build', '-ldflags', "-X 'ballerina-update-tool/utils.BallerinaToolVersion=${project.version}'", '-o', "${libsDirectory}/${project.name}-${project.version}-linux-arm", 'main.go'
 }
 
 // Task for Windows AMD64 build
@@ -61,7 +61,7 @@ task buildWindows(type: Exec) {
     workingDir projectDir
     environment 'GOOS', 'windows'
     environment 'GOARCH', 'amd64'
-    commandLine 'go', 'build', '-o', "${libsDirectory}/${project.name}-${project.version}-windows.exe", 'main.go'
+    commandLine 'go', 'build', '-ldflags', "-X 'ballerina-update-tool/utils.BallerinaToolVersion=${project.version}'", '-o', "${libsDirectory}/${project.name}-${project.version}-windows.exe", 'main.go'
 }
 
 // Main task to build for all platforms

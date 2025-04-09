@@ -33,6 +33,7 @@ var (
 	BallerinaStagingUpdate = os.Getenv("BALLERINA_STAGING_UPDATE") == "true"
 	BallerinaDevUpdate     = os.Getenv("BALLERINA_DEV_UPDATE") == "true"
 	TestMode               = os.Getenv("TEST_MODE_ACTIVE") == "true"
+	BallerinaToolVersion   = "0.0.0"
 )
 
 // ToolUtil provides utility functions for Ballerina tools, corresponding to ToolUtil.java
@@ -170,27 +171,7 @@ func (t toolUtilStruct) ClearCache(outStream io.Writer) {
 
 // GetCurrentToolsVersion reads the version from properties file
 func (t *toolUtilStruct) GetCurrentToolsVersion() string {
-	execPath, err := os.Executable()
-	if err != nil {
-		return ""
-	}
-	// Find resources directory next to the executable
-	propsPath := filepath.Join(filepath.Dir(filepath.Dir(execPath)), "resources", "tool.properties")
-
-	data, err := os.ReadFile(propsPath)
-	if err != nil {
-		panic(ErrorUtil.CreateCommandException("version info not available"))
-	}
-
-	// Parse properties file content
-	lines := strings.Split(string(data), "\n")
-	for _, line := range lines {
-		if strings.HasPrefix(line, "command.version=") {
-			return strings.TrimPrefix(line, "command.version=")
-		}
-	}
-
-	panic(ErrorUtil.CreateCommandException("version info not available"))
+	return BallerinaToolVersion
 }
 
 // Helper functions for file operations
